@@ -213,16 +213,25 @@
     if (!congregationHall) return;
     const seats = congregationHall.querySelectorAll('.hall-seat');
     seats.forEach((el, i) => {
-      if (i % 4 !== 0) return;
       const img = el.querySelector('.devotee-sprite');
       if (!img) return;
-      const delay = (i % 4) * 80;
+      // Sóng vái lạy: lan từ hàng xa tới hàng gần + từ mép thảm ra biên ngoài.
+      // Mỗi hàng 8 chỗ (4 trái + 4 phải), col 0 = gần thảm, col 3 = mép ngoài.
+      const row = Math.floor(i / 8);
+      const col = i % 4;
+      const delay = row * 100 + col * 55;
       setTimeout(() => { img.src = SPRITE_FRAMES.forehead; }, delay);
       setTimeout(() => { img.src = SPRITE_FRAMES.bowMid; }, delay + 140);
       setTimeout(() => { img.src = SPRITE_FRAMES.prostrateDeep; }, delay + 300);
       setTimeout(() => { img.src = SPRITE_FRAMES.bowMid; }, delay + 620);
       setTimeout(() => { img.src = SPRITE_FRAMES.kneel; }, delay + 780);
     });
+  }
+
+  // Hook thử nghiệm: mở trang kèm ?wave-test để thấy làn sóng vái lạy lặp lại mỗi 3s
+  if (location.search.includes('wave-test') && typeof pulseHallBowing === 'function') {
+    pulseHallBowing();
+    setInterval(pulseHallBowing, 3000);
   }
 
   let prostrationTimers = [];
