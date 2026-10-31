@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Debug — Thanh Vân Tông (kiểm tra asset / render)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: linear-gradient(160deg,#1b6f5e,#123a40 60%,#0b1226); font-family: system-ui, sans-serif; color: #eef2ff; padding: 16px; min-height: 100vh; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { opacity: .8; font-size: 12px; margin-bottom: 14px; }
+  .card { background: rgba(6,10,24,.72); border: 1px solid rgba(255,210,120,.35); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  .card h2 { font-size: 14px; color: #ffd88a; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  td, th { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,.12); text-align: left; word-break: break-all; }
+  .ok { color: #7dffb0; font-weight: 700; }
+  .bad { color: #ff7d7d; font-weight: 700; }
+  .warn { color: #ffd88a; font-weight: 700; }
+  .big { font-size: 15px; font-weight: 800; padding: 10px; border-radius: 10px; margin-bottom: 12px; }
+  .all-ok { background: #123d24; border: 2px solid #2fbd63; }
+  .has-bad { background: #431414; border: 2px solid #e05555; }
+  canvas { border: 1px dashed rgba(255,255,255,.4); image-rendering: pixelated; }
+  img.thumb { width: 72px; height: 48px; object-fit: cover; background: #333; }
+  code { color: #9fd8ff; }
+</style>
+</head>
+<body>
+  <h1>🔎 Debug hiển thị — Thanh Vân Tông</h1>
+  <div class="sub">Mở trang này trên ĐÚNG thiết bị bị nền đen. Chụp màn hình kết quả gửi lại.</div>
+  <div id="verdict" class="big" style="background:#222;color:#fff">Đang kiểm tra…</div>
+
+  <div class="card">
+    <h2>📱 Thiết bị / trình duyệt</h2>
+    <div id="deviceInfo" style="font-size:12px;line-height:1.7"></div>
+  </div>
+
+  <div class="card">
+    <h2>🖼️ 9 asset ảnh (fetch + decode + vẽ thử)</h2>
+    <table id="assetTable">
+      <tr><th>File</th><th>HTTP</th><th>Decode</th><th>Kích thước</th><th>Pixel</th><th>Thumb</th></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🎨 Canvas 2D & GPU</h2>
+    <div id="gpuInfo" style="font-size:12px;line-height:1.7"></div>
+    <canvas id="testCanvas" width="160" height="80"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>🔌 WebSocket /ws</h2>
+    <div id="wsInfo" style="font-size:12px">Đang thử…</div>
+  </div>
+
+<script>
+const ASSETS = [
+  'assets/sect_master_stage.png',
+  'assets/devotee.png',
+  'assets/devotee_walk.png',
+  'assets/devotee_walk_2.png',
+  'assets/devotee_kneel_down.png',
+  'assets/devotee_bow.png',
+  'assets/devotee_bow_mid.png',
+  'assets/devotee_prostrate.png',
+  'assets/devotee_prostrate_deep.png'
+];
+
+const info = {
+  UA: navigator.userAgent,
+  Màn_hình: `${screen.width}x${screen.height} @ DPR ${devicePixelRatio}`,
+  Viewport: `${innerWidth}x${innerHeight}`,
+  Mạng: (navigator.connection && navigator.connection.effectiveType) || '?',
+  'Ngôn ngữ': navigator.language,
+  'Chrome/giảm dữ liệu': (navigator.connection && (navigator.connection.saveData ? 'BẬT (có thể chặn ảnh!)' : 'tắt'))
+};
+document.getElementById('deviceInfo').innerHTML =
+  Object.entries(info).map(([k, v]) => `<b>${k}:</b> <code>${v}</code>`).join('<br>');
+
+const table = document.getElementById('assetTable');
+let bad = 0, done = 0;
+
+function row(cells) {
+  const tr = document.createElement('tr');
+  cells.forEach(c => { const td = document.createElement('td'); td.innerHTML = c; tr.appendChild(td); });
+  table.appendChild(tr);
+}
+
+function verdict() {
+  const v = document.getElementById('verdict');
+  if (done < ASSETS.length) return;
+  if (bad === 0) {
+    v.className = 'big all-ok';
+    v.textContent = '✅ MỌI ẢNH TẢI + DECODE + VẼ OK trên thiết bị này. Nếu trang chính vẫn đen → vấn đề là CSS/render của trang, không phải asset.';
+  } else {
+    v.className = 'big has-bad';
+    v.textContent = `❌ ${bad}/${ASSETS.length} asset LỖI trên thiết bị này — chụp màn hình gửi lại để sửa.`;
+  }
+}
+
+ASSETS.forEach(src => {
+  const started = performance.now();
+  fetch(src, { cache: 'no-store' })
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    })
+    .then(b => {
+      const ms = Math.round(performance.now() - started);
+      const url = URL.createObjectURL(b);
+      const im = new Image();
+      im.onload = () => {
+        // vẽ thử vào canvas rồi đọc pixel — nếu decode/render hỏng thì pixel đen
+        const cv = document.createElement('canvas');
+        cv.width = 24; cv.height = 24;
+        const cx = cv.getContext('2d');
+        cx.drawImage(im, 0, 0, 24, 24);
+        const d = cx.getImageData(12, 12, 1, 1).data;
+        const isBlack = d[0] + d[1] + d[2] < 10 && d[3] > 200;
+        row([
+          `<code>${src}</code>`,
+          '<span class="ok">200</span>',
+          '<span class="ok">OK</span>',
+          `${im.naturalWidth}×${im.naturalHeight}`,
+          isBlack ? '<span class="warn">tối (trong suốt?)</span>' : '<span class="ok">có màu</span>',
+          `<img class="thumb" src="${url}"> (${b.size}B, ${ms}ms)`
+        ]);
+        done++; if (isBlack) bad++; verdict();
+      };
+      im.onerror = () => {
+        row([`<code>${src}</code>`, '<span class="ok">200</span>', '<span class="bad">DECODE LỖI</span>', '?', '?', `(${b.size}B)`]);
+        done++; bad++; verdict();
+      };
+      im.src = url;
+    })
+    .catch(e => {
+      row([`<code>${src}</code>`, `<span class="bad">${e.message}</span>`, '—', '—', '—', '—']);
+      done++; bad++; verdict();
+    });
+});
+
+// Canvas + GPU
+(function () {
+  const cv = document.getElementById('testCanvas');
+  const cx = cv.getContext('2d');
+  let gpu = '2D canvas: ';
+  try {
+    const g = cx.createLinearGradient(0, 0, 160, 80);
+    g.addColorStop(0, '#2fd98a'); g.addColorStop(1, '#3f8cff');
+    cx.fillStyle = g; cx.fillRect(0, 0, 160, 80);
+    cx.fillStyle = '#fff'; cx.font = 'bold 14px sans-serif'; cx.fillText('RENDER OK', 28, 46);
+    const d = cx.getImageData(10, 10, 1, 1).data;
+    gpu += d[1] > 100 ? '<span class="ok">vẽ + đọc pixel OK</span>' : '<span class="bad">đọc pixel FAIL</span>';
+  } catch (e) { gpu += '<span class="bad">LỖI: ' + e.message + '</span>'; }
+  let glInfo = '';
+  try {
+    const gl = document.createElement('canvas').getContext('webgl');
+    if (gl) {
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      glInfo = (dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    }
+  } catch (e) { glInfo = 'WebGL lỗi: ' + e.message; }
+  document.getElementById('gpuInfo').innerHTML =
+    gpu + '<br><b>GPU:</b> <code>' + (glInfo || 'không lấy được') + '</code>';
+})();
+
+// WebSocket
+(function () {
+  const el = document.getElementById('wsInfo');
+  try {
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+    const t = setTimeout(() => { el.innerHTML = '<span class="warn">⏱ WS quá 5s không bắt tay</span>'; ws.close(); }, 5000);
+    ws.onopen = () => { clearTimeout(t); el.innerHTML = '<span class="ok">✅ WS bắt tay OK (101)</span>'; ws.close(); };
+    ws.onerror = () => { clearTimeout(t); el.innerHTML = '<span class="bad">❌ WS lỗi — realtime sẽ không chạy</span>'; };
+  } catch (e) { el.innerHTML = '<span class="bad">❌ ' + e.message + '</span>'; }
+})();
+</script>
+</body>
+</html>

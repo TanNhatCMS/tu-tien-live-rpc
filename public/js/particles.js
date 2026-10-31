@@ -9,7 +9,9 @@
 class TempleParticleEngine {
   constructor(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+    // KHÔNG dùng desynchronized:true — trên Android Chrome flag này khiến canvas
+    // bị GPU trình bày thành nền đen đặc, che mất toàn bộ hình nền + nhân vật.
+    this.ctx = canvas.getContext('2d', { alpha: true });
     this.width = 1080;
     this.height = 1920;
     this.canvas.width = this.width;
