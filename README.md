@@ -38,3 +38,13 @@ Quà: xu × 3, trần 300 tu vi cho một sự kiện quà. Số khởi tạo: 0
 - Không có license cho code gốc, ảnh và model trong repo gốc; kiểm tra quyền trước khi dùng thương mại.
 - TikTok connector không phải API chính thức, có thể đổi giao thức hoặc bị chặn.
 - Chưa có test tự động; đã kiểm tra cú pháp server và frontend bằng node --check.
+
+## Kiểm tra và CI
+- Test tự động: `npm test` (6 test, chạy server thật trên cổng 34567, không cần TikTok live).
+- CI GitHub Actions: cài bun, node --check cho server và frontend, chạy test.
+- Asset: `npm run assets` vẽ lại toàn bộ placeholder bằng `tools/generate-assets.py` (PIL). Art hiện tại là placeholder, chưa phải art hoàn chỉnh của họa sĩ.
+
+## License và nguồn gốc
+- Fork ý tưởng từ repo gốc zane-tv/tiktok-live-temple-rpc. Repo gốc không có license kèm theo tại thời điểm fork (31/10/2026), nên repo này KHÔNG tự nhận một license mới cho toàn bộ code.
+- Phần Jarvis viết mới cho tu tiên (namespace sect.*, cảnh giới, thẻ công pháp, token RPC, test, asset vẽ lại) được phát hành theo MIT, xem LICENSE.
+- Trước khi dùng thương mại, cần xác minh quyền của code gốc, ảnh gốc và model ZeroTTS.
