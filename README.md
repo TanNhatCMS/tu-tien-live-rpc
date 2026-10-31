@@ -7,13 +7,13 @@ Người xem tương tác bằng chat, like, follow/share và gift để nhập 
 - Tông môn: Thanh Vân Tông. Giọng TTS: maichi (ZeroTTS, giữ nguyên).
 - API: CHỈ dùng namespace `sect.*`. KHÔNG giữ alias `temple.*` — cắt hẳn để tránh nhầm lẫn và để grep sạch.
 - AutoSim: được phép khi phòng vắng, nhưng nhân vật mô phỏng bị tách khỏi bảng Chân Truyền, có nhãn Demo, và tự dừng khi có người xem thật (viewerCount > 0).
-- Asset hiện tại là placeholder vẽ lại theo layout gốc, KHÔNG dùng ảnh Phật gốc. Cần thay bằng art hoàn chỉnh trước khi live công khai.
+- Asset: art vẽ mới hoàn toàn cho theme tu tiên bằng `tools/generate-assets.py` (Python compose SVG → headless Chrome/Edge chụp PNG, không cần Pillow, không đụng ảnh Phật gốc của repo zane-tv). Nền Tiên Điện 1080×1920 neo đúng anchor overlay (mặt Tông Chủ 540,260 • tay cầm đài sen 540,502 • miệng lư 540,~905 • 6 đệm quỳ y=1188). 8 frame đệ tử giữ đúng tỷ lệ canvas frame gốc (walk 100×240, còn lại 139×190, scale 2×) nên không cần sửa CSS. Muốn chỉnh màu/tư thế: sửa SVG trong script rồi chạy lại `npm run assets` (cần Chrome hoặc Edge).
 
 ## Chạy nhanh
 ```bash
 bun install
 uv venv .venv
-uv pip install --python .venv/bin/python zerotts pillow
+uv pip install --python .venv/bin/python zerotts
 SECT_RPC_TOKEN=dat-token-rieng bun start
 ```
 - Live: http://localhost:3000
@@ -42,7 +42,7 @@ Quà: xu × 3, trần 300 tu vi cho một sự kiện quà. Số khởi tạo: 0
 ## Kiểm tra và CI
 - Test tự động: `npm test` (6 test, chạy server thật trên cổng 34567, không cần TikTok live).
 - CI GitHub Actions: cài bun, node --check cho server và frontend, chạy test.
-- Asset: `npm run assets` vẽ lại toàn bộ placeholder bằng `tools/generate-assets.py` (PIL). Art hiện tại là placeholder, chưa phải art hoàn chỉnh của họa sĩ.
+- Asset: `npm run assets` sinh lại toàn bộ art (nền + 8 frame) bằng `tools/generate-assets.py` — Python compose SVG rồi chụp qua headless Chrome/Edge (tự dò trình duyệt, đặt `CHROME_PATH` để chỉ định). Cần cài Chrome/Edge; không cần Pillow.
 
 ## License và nguồn gốc
 - Fork ý tưởng từ repo gốc zane-tv/tiktok-live-temple-rpc. Repo gốc không có license kèm theo tại thời điểm fork (31/10/2026), nên repo này KHÔNG tự nhận một license mới cho toàn bộ code.
