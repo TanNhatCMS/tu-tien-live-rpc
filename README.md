@@ -7,7 +7,7 @@ Người xem tương tác bằng chat, like, follow/share và gift để nhập 
 - Tông môn: Thanh Vân Tông. Giọng TTS: maichi (ZeroTTS, giữ nguyên).
 - API: CHỈ dùng namespace `sect.*`. KHÔNG giữ alias `temple.*` — cắt hẳn để tránh nhầm lẫn và để grep sạch.
 - AutoSim: được phép khi phòng vắng, nhưng nhân vật mô phỏng bị tách khỏi bảng Chân Truyền, có nhãn Demo, và tự dừng khi có người xem thật (viewerCount > 0).
-- Asset: art vẽ mới hoàn toàn cho theme tu tiên bằng `tools/generate-assets.py` (Python compose SVG → headless Chrome/Edge chụp PNG, không cần Pillow, không đụng ảnh Phật gốc của repo zane-tv). Nền Tiên Điện 1080×1920 neo đúng anchor overlay (mặt Tông Chủ 540,260 • tay cầm đài sen 540,502 • miệng lư 540,~905 • 6 đệm quỳ y=1188). 8 frame đệ tử giữ đúng tỷ lệ canvas frame gốc (walk 100×240, còn lại 139×190, scale 2×) nên không cần sửa CSS. Muốn chỉnh màu/tư thế: sửa SVG trong script rồi chạy lại `npm run assets` (cần Chrome hoặc Edge).
+- Asset: art vẽ mới hoàn toàn cho theme tu tiên bằng `tools/generate-assets.py` (Python compose SVG → headless Chrome/Edge chụp PNG, không cần Pillow, không đụng ảnh Phật gốc của repo zane-tv). Nền Tiên Điện 1080×1920 neo đúng anchor overlay (mặt Tông Chủ 540,260 • tay cầm đài sen 540,502 • miệng lư 540,~905 • 6 đệm quỳ y=1188). 8 frame đệ tử vẽ TỪNG PHẦN CẮT RỜI như repo nguồn (khối tóc bun + tai, cổ áo cao, thân áo đường may sống lưng, đai quấn, 2 tay áo phồng riêng có bóng khe, váy xòe gợn + 2 gối nhô, bàn tay lộ khi lạy, giày lộ khi đi) với viền sáng vàng ấm theo từng phần, giữ đúng tỷ lệ canvas frame gốc (walk 100×240, còn lại 139×190, scale 2×) nên không cần sửa CSS. Muốn chỉnh màu/tư thế: sửa SVG trong script rồi chạy lại `npm run assets` (cần Chrome hoặc Edge).
 
 ## Chạy nhanh
 ```bash

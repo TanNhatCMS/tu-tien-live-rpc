@@ -555,83 +555,327 @@ def stage_svg():
 
 
 # ===========================================================================
-# SPRITES — Đệ tử Thanh Vân Tông (nhìn từ LƯNG, áo bào xanh ngọc, búi tóc
-# trâm ngọc, đai lụa trắng). Tỷ lệ canvas 2x so với repo gốc để nét trên 1080p:
-#   walk: 200x480 (gốc 100x240) | còn lại: 278x380 (gốc 139x190)
-# Rim light đặt TRƯỚC thân (backlight), bóng ellipse bake sẵn đáy canvas.
+# SPRITES — Đệ tử Thanh Vân Tông, vẽ TỪNG PHẦN CẮT RỜI giống repo nguồn:
+# khối tóc bun bóng + tai, cổ áo cao, thân áo đường may sống lưng, đai quấn,
+# 2 tay áo phồng riêng nằm ngoài thân, váy xòe gợn sóng + 2 gối nhô dưới váy,
+# lòng bàn tay lộ khi lạy, giày lộ dưới vạt khi đi. Viền sáng vàng ấm quét
+# theo ĐƯỜNG CONG từng phần như nguồn. Áo mây xám-lavender pale, trâm ngọc.
+# Canvas 2x tỷ lệ frame gốc:
+#   walk 200x480 (gốc 100x240) | còn lại 278x380 (gốc 139x190)
 # ===========================================================================
 
 SPRITE_DEFS = """<defs>
   <linearGradient id="robe" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#3a7c6e"/><stop offset="0.55" stop-color="#26584d"/>
-    <stop offset="1" stop-color="#173831"/>
+    <stop offset="0" stop-color="#dcdfeb"/><stop offset="0.55" stop-color="#c3c7da"/>
+    <stop offset="1" stop-color="#a3a8c0"/>
   </linearGradient>
-  <linearGradient id="sleeve" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#417a6a"/><stop offset="1" stop-color="#20443c"/>
+  <linearGradient id="sleeveG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#bfc4d6"/><stop offset="1" stop-color="#7e83a1"/>
   </linearGradient>
-  <linearGradient id="sash" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#f2ead2"/><stop offset="1" stop-color="#cbbc96"/>
+  <linearGradient id="skirt" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#cdd0df"/><stop offset="1" stop-color="#9ba0ba"/>
   </linearGradient>
-  <linearGradient id="trousers" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#2c4f45"/><stop offset="1" stop-color="#1a332c"/>
+  <linearGradient id="collarG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f4f2ec"/><stop offset="1" stop-color="#d8d5c8"/>
   </linearGradient>
-  <radialGradient id="rimWarm" cx="0.72" cy="0.2" r="0.75">
-    <stop offset="0" stop-color="#ffdf9e" stop-opacity="0.4"/>
-    <stop offset="0.55" stop-color="#ffdf9e" stop-opacity="0.1"/>
-    <stop offset="1" stop-color="#ffdf9e" stop-opacity="0"/>
+  <linearGradient id="sashG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#e6e8f1"/><stop offset="1" stop-color="#b3b8cd"/>
+  </linearGradient>
+  <radialGradient id="hairG" cx="0.38" cy="0.3" r="1">
+    <stop offset="0" stop-color="#3d2f22"/><stop offset="0.55" stop-color="#221a13"/>
+    <stop offset="1" stop-color="#0d0a07"/>
   </radialGradient>
+  <radialGradient id="skinG" cx="0.4" cy="0.35" r="0.9">
+    <stop offset="0" stop-color="#eccaae"/><stop offset="1" stop-color="#d2a67f"/>
+  </radialGradient>
+  <filter id="sb15"><feGaussianBlur stdDeviation="1.4"/></filter>
   <filter id="sb2"><feGaussianBlur stdDeviation="2"/></filter>
   <filter id="sb4"><feGaussianBlur stdDeviation="4"/></filter>
 </defs>"""
 
+GOLD = "#ffce7f"
+SEAM = "#8288a6"
+
+
+def _poly(pts):
+    return "M " + " L ".join(f"{x:.0f} {y:.0f}" for x, y in pts)
+
+
+def rim(d, w=2.6, op=0.6):
+    """Viền sáng vàng ấm theo đường cong của một bộ phận — d là path SVG."""
+    return (
+        f'<path d="{d}" fill="none" stroke="{GOLD}" stroke-width="{w}" '
+        f'stroke-linecap="round" opacity="{op}" filter="url(#sb15)"/>'
+    )
+
+
+def seam(d, w=1.8, op=0.5):
+    return (
+        f'<path d="{d}" fill="none" stroke="{SEAM}" stroke-width="{w}" '
+        f'stroke-linecap="round" opacity="{op}"/>'
+    )
+
 
 def sprite_shadow(cx, cy, rx, ry=12):
-    return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#060a14" opacity="0.42" filter="url(#sb4)"/>'
+    return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#05070f" opacity="0.45" filter="url(#sb4)"/>'
 
 
-def head_bun(cx, cy, r=30, pin=True):
-    """Đầu nhìn từ lưng: tóc đen + búi + trâm ngọc."""
+def part_hair(cx, cy, rx=50, ry=52, bun_r=21, pin=True):
+    """Khối tóc nhìn từ lưng + búi tròn bóng + trâm ngọc."""
     s = []
-    s.append(f'<ellipse cx="{cx}" cy="{cy}" rx="{r}" ry="{r*1.06:.0f}" fill="#171310"/>')
+    s.append(f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="url(#hairG)"/>')
     s.append(
-        f'<path d="M{cx-r*0.9:.0f} {cy-r*0.2:.0f} Q {cx-r*0.55:.0f} {cy-r*1.25:.0f} {cx} {cy-r*1.18:.0f} '
-        f'Q {cx+r*0.55:.0f} {cy-r*1.25:.0f} {cx+r*0.9:.0f} {cy-r*0.2:.0f} Q {cx+r*0.4:.0f} {cy+r*0.62:.0f} {cx} {cy+r*0.6:.0f} '
-        f'Q {cx-r*0.4:.0f} {cy+r*0.62:.0f} {cx-r*0.9:.0f} {cy-r*0.2:.0f} Z" fill="#231c15"/>'
+        f'<ellipse cx="{cx}" cy="{cy + ry * 0.6:.0f}" rx="{rx * 0.5:.0f}" ry="{ry * 0.2:.0f}" '
+        'fill="#5a4025" opacity="0.45"/>'
     )
     s.append(
-        f'<path d="M{cx-r*0.7:.0f} {cy-r*0.55:.0f} Q {cx-r*0.2:.0f} {cy-r*1.05:.0f} {cx+r*0.5:.0f} {cy-r*0.5:.0f}" '
-        'fill="none" stroke="#4a3b2c" stroke-width="2" opacity="0.55"/>'
+        f'<path d="M {cx - rx * 0.6:.0f} {cy - ry * 0.28:.0f} Q {cx - rx * 0.15:.0f} {cy - ry * 0.86:.0f} '
+        f'{cx + rx * 0.55:.0f} {cy - ry * 0.24:.0f}" fill="none" stroke="#5d4630" stroke-width="3.4" '
+        'opacity="0.55" filter="url(#sb15)"/>'
     )
-    s.append(f'<ellipse cx="{cx}" cy="{cy-r*1.28:.0f}" rx="{r*0.42:.0f}" ry="{r*0.36:.0f}" fill="#1d1712"/>')
     s.append(
-        f'<ellipse cx="{cx-r*0.12:.0f}" cy="{cy-r*1.38:.0f}" rx="{r*0.2:.0f}" ry="{r*0.12:.0f}" fill="#453723" opacity="0.8"/>'
+        f'<path d="M {cx - rx * 0.45:.0f} {cy - ry * 0.02:.0f} Q {cx:.0f} {cy - ry * 0.62:.0f} '
+        f'{cx + rx * 0.66:.0f} {cy:.0f}" fill="none" stroke="#3f2f1e" stroke-width="2.4" '
+        'opacity="0.45" filter="url(#sb15)"/>'
     )
-    if pin:
-        px = cx + r * 0.5
-        py = cy - r * 1.26
+    bcy = cy - ry - bun_r * 0.28
+    if bun_r > 0:
+        s.append(f'<circle cx="{cx}" cy="{bcy:.0f}" r="{bun_r}" fill="url(#hairG)"/>')
         s.append(
-            f'<rect x="{px:.0f}" y="{py:.0f}" width="{r*1.1:.0f}" height="5" rx="2.5" '
-            f'transform="rotate(12 {px:.0f} {py:.0f})" fill="#3fae94"/>'
+            f'<ellipse cx="{cx}" cy="{bcy + bun_r * 0.3:.0f}" rx="{bun_r * 0.55:.0f}" ry="{bun_r * 0.3:.0f}" '
+            'fill="#0d0a07" opacity="0.5"/>'
         )
-        s.append(f'<circle cx="{px + r*1.02:.0f}" cy="{py - r*0.16:.0f}" r="3.4" fill="#8fe8d8"/>')
-    # cổ áo lộ sau gáy
-    s.append(f'<path d="M{cx-r*0.5:.0f} {cy+r*0.95:.0f} L {cx} {cy+r*1.28:.0f} L {cx+r*0.5:.0f} {cy+r*0.95:.0f}" '
-             'fill="none" stroke="#e8e0c8" stroke-width="5" stroke-linejoin="round"/>')
+        s.append(
+            f'<path d="M {cx - bun_r * 0.75:.0f} {bcy - bun_r * 0.5:.0f} A {bun_r * 0.92:.0f} {bun_r * 0.92:.0f} 0 0 1 '
+            f'{cx + bun_r * 0.6:.0f} {bcy - bun_r * 0.62:.0f}" fill="none" stroke="#6b4e30" '
+            'stroke-width="3" opacity="0.85" filter="url(#sb15)"/>'
+        )
+        if pin:
+            px = cx + bun_r * 0.7
+            py = bcy - bun_r * 0.5
+            s.append(
+                f'<rect x="{px:.0f}" y="{py:.0f}" width="{bun_r * 1.5:.0f}" height="4.5" rx="2.2" '
+                f'transform="rotate(14 {px:.0f} {py:.0f})" fill="#3fae94"/>'
+            )
+            s.append(f'<circle cx="{px + bun_r * 1.42:.0f}" cy="{py - bun_r * 0.28:.0f}" r="3" fill="#8fe8d8"/>')
+    s.append(
+        rim(
+            f'M {cx + rx * 0.52:.0f} {cy - ry * 0.55:.0f} Q {cx + rx * 1.04:.0f} {cy:.0f} {cx + rx * 0.5:.0f} {cy + ry * 0.6:.0f}',
+            w=2.6,
+            op=0.45,
+        )
+    )
     return "".join(s)
 
 
-def sash_knot(cx, cy):
-    """Nơ đai lụa sau lưng + hai dải buông."""
-    return f"""<g>
-      <circle cx="{cx}" cy="{cy}" r="8" fill="url(#sash)"/>
-      <circle cx="{cx}" cy="{cy}" r="8" fill="none" stroke="#a4977a" stroke-width="1.2"/>
-      <path d="M{cx-3} {cy+6} Q {cx-10} {cy+36} {cx-4} {cy+58}" fill="none" stroke="url(#sash)" stroke-width="6.5" stroke-linecap="round"/>
-      <path d="M{cx+3} {cy+6} Q {cx+10} {cy+34} {cx+5} {cy+54}" fill="none" stroke="url(#sash)" stroke-width="6.5" stroke-linecap="round"/>
-    </g>"""
+def part_ears(cx, cy, dx, r=8):
+    return (
+        f'<ellipse cx="{cx - dx}" cy="{cy}" rx="{r * 0.72:.0f}" ry="{r}" fill="url(#skinG)"/>'
+        f'<ellipse cx="{cx + dx}" cy="{cy}" rx="{r * 0.72:.0f}" ry="{r}" fill="url(#skinG)"/>'
+    )
+
+
+def part_collar(cx, y, w=44, h=17):
+    """Cổ áo cao sau gáy."""
+    return (
+        f'<path d="M {cx - w / 2:.0f} {y + h} L {cx - w * 0.34:.0f} {y} L {cx + w * 0.34:.0f} {y} '
+        f'L {cx + w / 2:.0f} {y + h} Z" fill="url(#collarG)"/>'
+        + seam(f'M {cx} {y + 2} L {cx} {y + h - 1}', w=1.4, op=0.45)
+    )
+
+
+def part_torso(cx, top_y, waist_y, hw_sh, hw_waist, hunch=0.0):
+    """Thân áo: caps vai tròn, seam sống lưng, shading hông, viền cong phải."""
+    s = []
+    span = waist_y - top_y
+    cap_y = top_y - 8 - hunch * 8
+    s.append(
+        f'<path d="M {cx - hw_sh:.0f} {top_y + 8 + hunch * 10:.0f} '
+        f'C {cx - hw_sh:.0f} {top_y - 4:.0f} {cx - hw_sh * 0.45:.0f} {cap_y:.0f} {cx:.0f} {cap_y:.0f} '
+        f'C {cx + hw_sh * 0.45:.0f} {cap_y:.0f} {cx + hw_sh:.0f} {top_y - 4:.0f} {cx + hw_sh:.0f} {top_y + 8 + hunch * 10:.0f} '
+        f'C {cx + hw_sh * 1.05:.0f} {top_y + span * 0.5:.0f} {cx + hw_waist * 1.06:.0f} {waist_y - 14:.0f} {cx + hw_waist:.0f} {waist_y:.0f} '
+        f'L {cx - hw_waist:.0f} {waist_y:.0f} '
+        f'C {cx - hw_waist * 1.06:.0f} {waist_y - 14:.0f} {cx - hw_sh * 1.05:.0f} {top_y + span * 0.5:.0f} '
+        f'{cx - hw_sh:.0f} {top_y + 8 + hunch * 10:.0f} Z" fill="url(#robe)"/>'
+    )
+    s.append(seam(f'M {cx} {cap_y + 14:.0f} L {cx} {waist_y - 2}', w=1.7, op=0.5))
+    s.append(
+        f'<path d="M {cx - hw_sh * 0.88:.0f} {top_y + 16:.0f} C {cx - hw_sh:.0f} {top_y + span * 0.4:.0f} '
+        f'{cx - hw_waist * 0.95:.0f} {waist_y - 26:.0f} {cx - hw_waist * 0.8:.0f} {waist_y:.0f} '
+        f'L {cx - hw_waist * 0.45:.0f} {waist_y:.0f} '
+        f'C {cx - hw_waist * 0.6:.0f} {waist_y - 30:.0f} {cx - hw_sh * 0.68:.0f} {top_y + span * 0.45:.0f} '
+        f'{cx - hw_sh * 0.52:.0f} {top_y + 16:.0f} Z" fill="#9aa0ba" opacity="0.42"/>'
+    )
+    s.append(
+        f'<path d="M {cx + hw_sh * 0.88:.0f} {top_y + 16:.0f} C {cx + hw_sh:.0f} {top_y + span * 0.4:.0f} '
+        f'{cx + hw_waist * 0.95:.0f} {waist_y - 26:.0f} {cx + hw_waist * 0.8:.0f} {waist_y:.0f} '
+        f'L {cx + hw_waist * 0.45:.0f} {waist_y:.0f} '
+        f'C {cx + hw_waist * 0.6:.0f} {waist_y - 30:.0f} {cx + hw_sh * 0.68:.0f} {top_y + span * 0.45:.0f} '
+        f'{cx + hw_sh * 0.52:.0f} {top_y + 16:.0f} Z" fill="#eef0f8" opacity="0.5"/>'
+    )
+    s.append(
+        rim(
+            f'M {cx + hw_sh * 0.92:.0f} {top_y + 10:.0f} Q {cx + hw_sh * 1.1:.0f} {top_y + span * 0.5:.0f} '
+            f'{cx + hw_waist * 0.98:.0f} {waist_y - 4:.0f}',
+            w=2.8,
+            op=0.65,
+        )
+    )
+    return "".join(s)
+
+
+def part_sash(cx, y, hw, h=17):
+    """Đai lụa quấn quanh eo + nếp + viền sáng mép trên."""
+    s = []
+    s.append(
+        f'<path d="M {cx - hw:.0f} {y} L {cx + hw:.0f} {y} L {cx + hw:.0f} {y + h:.0f} L {cx - hw:.0f} {y + h:.0f} Z" '
+        'fill="url(#sashG)"/>'
+    )
+    s.append(
+        f'<path d="M {cx - hw:.0f} {y + h * 0.45:.0f} Q {cx:.0f} {y + h * 0.68:.0f} {cx + hw:.0f} {y + h * 0.45:.0f}" '
+        f'fill="none" stroke="{SEAM}" stroke-width="1.6" opacity="0.5"/>'
+    )
+    s.append(
+        seam(f'M {cx - hw:.0f} {y + h:.0f} L {cx + hw:.0f} {y + h:.0f}', w=1.6, op=0.4)
+    )
+    s.append(rim(f'M {cx - hw * 0.75:.0f} {y + 1.5:.0f} L {cx + hw * 0.75:.0f} {y + 1.5:.0f}', w=2.2, op=0.55))
+    return "".join(s)
+
+
+def part_sleeve(sh, oc1, oc2, cuff, ic1, ic2, cuff_rx=15, cuff_ry=10, hand=None, hand_rot=0, hand_w=8.5, hand_h=12):
+    """Tay áo phồng riêng: path 2 khối cong (vai -> ngoài -> cổ tay -> nách).
+    sh/cuff = điểm; oc1/oc2/ic1/ic2 = control point. hand = (x, y)."""
+    s = []
+    s.append(
+        f'<path d="M {sh[0]:.0f} {sh[1]:.0f} C {oc1[0]:.0f} {oc1[1]:.0f} {oc2[0]:.0f} {oc2[1]:.0f} '
+        f'{cuff[0]:.0f} {cuff[1]:.0f} C {ic1[0]:.0f} {ic1[1]:.0f} {ic2[0]:.0f} {ic2[1]:.0f} '
+        f'{sh[0]:.0f} {sh[1]:.0f} Z" fill="url(#sleeveG)"/>'
+    )
+    mx = (sh[0] + cuff[0]) / 2 + (oc2[0] - ic1[0]) * 0.1
+    my = (sh[1] + cuff[1]) / 2
+    s.append(
+        f'<path d="M {sh[0] * 0.4 + oc1[0] * 0.6:.0f} {sh[1] * 0.4 + oc1[1] * 0.6:.0f} '
+        f'Q {mx:.0f} {my:.0f} {cuff[0] * 0.7 + ic2[0] * 0.3:.0f} {cuff[1] * 0.7 + ic2[1] * 0.3:.0f}" '
+        f'fill="none" stroke="{SEAM}" stroke-width="1.8" opacity="0.32"/>'
+    )
+    s.append(f'<ellipse cx="{cuff[0]:.0f}" cy="{cuff[1]:.0f}" rx="{cuff_rx}" ry="{cuff_ry}" fill="#ccd0de"/>')
+    s.append(
+        seam(f'M {cuff[0] - cuff_rx * 0.7:.0f} {cuff[1] - cuff_ry * 0.55:.0f} '
+             f'Q {cuff[0]:.0f} {cuff[1] - cuff_ry * 1.25:.0f} {cuff[0] + cuff_rx * 0.7:.0f} {cuff[1] - cuff_ry * 0.55:.0f}',
+             w=1.6, op=0.4)
+    )
+    # ĐƯỜNG CẮT: bóng khe mềm + seam mảnh dọc cạnh trong tay áo nơi tiếp giáp thân
+    s.append(
+        f'<path d="M {cuff[0]:.0f} {cuff[1]:.0f} C {ic1[0]:.0f} {ic1[1]:.0f} {ic2[0]:.0f} {ic2[1]:.0f} {sh[0]:.0f} {sh[1]:.0f}" '
+        'fill="none" stroke="#545975" stroke-width="5.5" opacity="0.4" filter="url(#sb2)"/>'
+    )
+    s.append(
+        seam(f'M {cuff[0]:.0f} {cuff[1]:.0f} C {ic1[0]:.0f} {ic1[1]:.0f} {ic2[0]:.0f} {ic2[1]:.0f} {sh[0]:.0f} {sh[1]:.0f}',
+             w=2.4, op=0.6)
+    )
+    if hand:
+        s.append(
+            f'<ellipse cx="{hand[0]:.0f}" cy="{hand[1]:.0f}" rx="{hand_w}" ry="{hand_h}" '
+            f'transform="rotate({hand_rot} {hand[0]} {hand[1]})" fill="url(#skinG)"/>'
+        )
+    s.append(
+        rim(
+            f'M {oc1[0]:.0f} {oc1[1]:.0f} Q {oc2[0]:.0f} {oc2[1]:.0f} {cuff[0]:.0f} {cuff[1]:.0f}',
+            w=2.6,
+            op=0.55,
+        )
+    )
+    return "".join(s)
+
+
+def part_skirt(cx, waist_y, hw_waist, base_y, hw_base, folds=5, knee=True):
+    """Váy xòe sau lưng: dome + nếp toả + gợn sóng mép đáy + 2 gối nhô."""
+    s = []
+    s.append(
+        f'<path d="M {cx - hw_waist:.0f} {waist_y:.0f} '
+        f'C {cx - hw_base - 10:.0f} {waist_y + 36:.0f} {cx - hw_base - 4:.0f} {base_y - 46:.0f} {cx - hw_base:.0f} {base_y:.0f} '
+        f'L {cx + hw_base:.0f} {base_y:.0f} '
+        f'C {cx + hw_base + 4:.0f} {base_y - 46:.0f} {cx + hw_base + 10:.0f} {waist_y + 36:.0f} {cx + hw_waist:.0f} {waist_y:.0f} Z" '
+        'fill="url(#skirt)"/>'
+    )
+    for i in range(folds):
+        t = (i + 0.5) / folds
+        fx = cx - hw_base + 2 * hw_base * t
+        top_x = cx - hw_waist + 2 * hw_waist * t
+        s.append(
+            f'<path d="M {top_x:.0f} {waist_y + 10:.0f} '
+            f'Q {(top_x + fx) / 2 + (fx - top_x) * 0.2:.0f} {(waist_y + base_y) / 2:.0f} {fx:.0f} {base_y - 8:.0f}" '
+            f'fill="none" stroke="{SEAM}" stroke-width="2" opacity="0.36"/>'
+        )
+    n = 6
+    for i in range(n):
+        x0 = cx - hw_base + 2 * hw_base * i / n
+        x1 = cx - hw_base + 2 * hw_base * (i + 1) / n
+        s.append(
+            f'<path d="M {x0:.0f} {base_y:.0f} Q {(x0 + x1) / 2:.0f} {base_y + 9:.0f} {x1:.0f} {base_y:.0f}" '
+            f'fill="none" stroke="{SEAM}" stroke-width="2" opacity="0.5"/>'
+        )
+    if knee:
+        for kx in (cx - 21, cx + 21):
+            s.append(f'<ellipse cx="{kx}" cy="{base_y - 10}" rx="19" ry="13" fill="#c6c9d9"/>')
+            s.append(
+                f'<ellipse cx="{kx}" cy="{base_y - 12}" rx="19" ry="13" fill="none" stroke="{SEAM}" '
+                'stroke-width="1.4" opacity="0.45"/>'
+            )
+        s.append(seam(f'M {cx} {base_y - 18} L {cx} {base_y + 1}', w=1.6, op=0.55))
+    s.append(
+        rim(f'M {cx + hw_base - 4:.0f} {base_y - 36:.0f} Q {cx + hw_base + 3:.0f} {base_y - 16:.0f} {cx + hw_base - 2:.0f} {base_y - 2:.0f}', w=2.8, op=0.55)
+    )
+    return "".join(s)
+
+
+def part_hand(x, y, rot=0, w=8.5, h=12):
+    return (
+        f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{w}" ry="{h}" '
+        f'transform="rotate({rot} {x:.0f} {y:.0f})" fill="url(#skinG)"/>'
+    )
+
+
+def part_trouser(x, top_y, bot_y, w):
+    return (
+        f'<path d="M {x - w:.0f} {top_y} L {x + w:.0f} {top_y} L {x + w * 0.78:.0f} {bot_y} L {x - w * 0.78:.0f} {bot_y} Z" '
+        'fill="#a9aec5"/>'
+    )
+
+
+def part_shoe(x, y, s=1.0):
+    return (
+        f'<path d="M {x - 11 * s:.0f} {y - 9 * s:.0f} Q {x:.0f} {y - 15 * s:.0f} {x + 11 * s:.0f} {y - 9 * s:.0f} '
+        f'L {x + 9 * s:.0f} {y:.0f} Q {x:.0f} {y + 4 * s:.0f} {x - 9 * s:.0f} {y:.0f} Z" fill="#2a2126"/>'
+        f'<ellipse cx="{x:.0f}" cy="{y + 1:.0f}" rx="{10 * s:.0f}" ry="{3.6 * s:.0f}" fill="#b9b4a8"/>'
+    )
 
 
 # ---------------------------------------------------------------------------
-# Pose: ĐI BỘ (canvas 200x480)
+# Pose QUỲ (278x380): devotee.png (thẳng) + devotee_kneel_down.png (hạ thấp)
+# ---------------------------------------------------------------------------
+
+def sprite_kneel(lower=0.0):
+    W, H = 278, 380
+    cx = 139
+    drop = lower * 24
+    g = [f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">', SPRITE_DEFS]
+    g.append(sprite_shadow(cx, 364, 88, 12))
+    g.append(part_skirt(cx, 224 + drop, 52, 356, 90, folds=5, knee=True))
+    # tay áo phồng hüg ngoài thân (vẽ trước thân, thân chỉ che mép trong)
+    g.append(part_sleeve((105, 148 + drop), (56, 180 + drop), (42, 246 + drop), (68, 288 + drop), (86, 262 + drop), (98, 186 + drop)))
+    g.append(part_sleeve((173, 148 + drop), (222, 180 + drop), (236, 246 + drop), (210, 288 + drop), (192, 262 + drop), (180, 186 + drop)))
+    g.append(part_torso(cx, 130 + drop, 224 + drop, 52, 44, hunch=lower * 0.6))
+    g.append(part_sash(cx, 216 + drop, 52))
+    g.append(part_collar(cx, 122 + drop))
+    g.append(part_ears(cx, 106 + drop, 47))
+    g.append(part_hair(cx, 84 + drop, 50, 50, 21))
+    g.append("</svg>")
+    return "".join(g)
+
+
+# ---------------------------------------------------------------------------
+# Pose ĐI BỘ (200x480): devotee_walk.png / devotee_walk_2.png
 # ---------------------------------------------------------------------------
 
 def sprite_walk(direction=1):
@@ -639,240 +883,133 @@ def sprite_walk(direction=1):
     cx = 100
     flip = -1 if direction < 0 else 1
     g = [f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">', SPRITE_DEFS]
-    g.append(sprite_shadow(cx, 458, 62, 12))
-    # hào quang viền sau lưng (trước thân)
-    g.append(f'<ellipse cx="{cx+30}" cy="250" rx="64" ry="170" fill="url(#rimWarm)" filter="url(#sb4)"/>')
-    # chân sau lộ dưới vạt
-    back_x = cx + flip * 26
-    front_x = cx - flip * 20
-    g.append(f"""<g>
-      <path d="M{back_x-16} 396 L{back_x+14} 396 L{back_x+10} 446 L{back_x-12} 446 Z" fill="url(#trousers)"/>
-      <ellipse cx="{back_x-2}" cy="452" rx="17" ry="8" fill="#241a12"/>
-      <ellipse cx="{front_x}" cy="430" rx="14" ry="7" fill="#241a12" opacity="0.85"/>
-    </g>""")
-    # áo bào dài vạt xoát theo hướng đi
-    g.append(f"""<g>
-      <path d="M{cx-52} 158
-               C {cx-62} 220 {cx-58} 300 {cx-40-flip*6} 368
-               C {cx-30-flip*8} 398 {cx-14-flip*10} 416 {cx+2-flip*12} 424
-               L {cx+38-flip*6} 424
-               C {cx+52-flip*2} 400 {cx+60} 340 {cx+58} 268
-               C {cx+56} 210 {cx+50} 178 {cx+44} 158 Z" fill="url(#robe)"/>
-      <path d="M{cx-52} 158 C {cx-62} 220 {cx-58} 300 {cx-40-flip*6} 368" fill="none" stroke="#122b25" stroke-width="3" opacity="0.7"/>
-      <path d="M{cx+58} 268 C {cx+60} 340 {cx+52-flip*2} 400 {cx+38-flip*6} 424" fill="none" stroke="#0f2a24" stroke-width="3" opacity="0.6"/>
-      <path d="M{cx-10} 300 C {cx-12} 340 {cx-16} 380 {cx-24} 412" fill="none" stroke="#122b25" stroke-width="2.4" opacity="0.5"/>
-      <path d="M{cx+16} 300 C {cx+18} 340 {cx+20} 380 {cx+16} 416" fill="none" stroke="#122b25" stroke-width="2.4" opacity="0.5"/>
-    </g>""")
-    # tay: ống tay rộng vung theo bước, đầu cuff chụm (không lộ bàn tay)
-    g.append(f"""<g>
-      <path d="M{cx-50} 170
-               C {cx-76} 202 {cx-86-flip*12} 252 {cx-80-flip*16} 296
-               C {cx-78-flip*14} 312 {cx-64-flip*12} 316 {cx-56-flip*10} 306
-               C {cx-60-flip*12} 260 {cx-56} 214 {cx-42} 184 Z" fill="url(#sleeve)"/>
-      <path d="M{cx-80-flip*16} 296 C {cx-78-flip*14} 312 {cx-64-flip*12} 316 {cx-56-flip*10} 306"
-            fill="none" stroke="#122b25" stroke-width="2.6" opacity="0.7"/>
-      <path d="M{cx+48} 168
-               C {cx+68} 198 {cx+74+flip*8} 244 {cx+70+flip*14} 288
-               C {cx+66+flip*12} 304 {cx+52+flip*10} 306 {cx+46+flip*8} 296
-               C {cx+52+flip*10} 252 {cx+52} 208 {cx+40} 180 Z" fill="url(#sleeve)"/>
-      <path d="M{cx+70+flip*14} 288 C {cx+66+flip*12} 304 {cx+52+flip*10} 306 {cx+46+flip*8} 296"
-            fill="none" stroke="#122b25" stroke-width="2.6" opacity="0.7"/>
-    </g>""")
-    g.append(sash_knot(cx, 214))
-    # cổ + đầu
-    g.append(f'<path d="M{cx-22} 152 L{cx+22} 152 L{cx+18} 170 L{cx-18} 170 Z" fill="#2c5a4e"/>')
-    g.append(head_bun(cx, 116, 30))
+    g.append(sprite_shadow(cx, 462, 56, 11))
+    # giày chân sau ló sau vạt + chân trước
+    g.append(part_shoe(cx - flip * 30, 438, 0.9))
+    g.append(part_trouser(cx + flip * 13, 396, 444, 12))
+    g.append(part_shoe(cx + flip * 13, 452, 1.0))
+    # vạt áo xòe theo bước, mép gấp nếp
+    hem_pts = [
+        (66, 254),
+        (40, 300),
+        (26, 380),
+        (32, 434),
+        (56, 426),
+        (74, 438),
+        (96, 428),
+        (118, 436),
+        (138, 422),
+        (158, 426),
+        (168, 380),
+        (160, 300),
+        (134, 254),
+    ]
+    g.append(f'<path d="{_poly(hem_pts)} Z" fill="url(#skirt)"/>')
+    g.append(f'<path d="M {cx + flip * 6} 428 L {cx + flip * 18} 404 L {cx + flip * 20} 430 Z" fill="#6f7490" opacity="0.8"/>')
+    for i, (fx, fy) in enumerate([(56, 426), (96, 428), (138, 422)]):
+        g.append(
+            f'<path d="M {cx - 20 + i * 20} 258 Q {(cx - 20 + i * 20 + fx) / 2:.0f} {(258 + fy) / 2:.0f} {fx} {fy}" '
+            f'fill="none" stroke="{SEAM}" stroke-width="2.2" opacity="0.4"/>'
+        )
+    g.append(rim(f'M {158} 426 Q {168} 380 {160} 300 Q {156} 268 {134} 254', w=2.8, op=0.6))
+    # tay áo vung theo bước
+    g.append(part_sleeve((78, 148), (46, 176), (34, 244), (52, 290), (60, 258), (72, 190), hand=None))
+    g.append(part_sleeve((122, 148), (156, 180), (166, 244), (148, 286), (140, 254), (128, 190), hand=None))
+    g.append(part_torso(cx, 130, 254, 38, 28))
+    g.append(part_sash(cx, 246, 31))
+    g.append(part_collar(cx, 128))
+    g.append(part_ears(cx, 108, 34))
+    g.append(part_hair(cx, 90, 42, 46, 18))
     g.append("</svg>")
     return "".join(g)
 
 
 # ---------------------------------------------------------------------------
-# Pose: QUỲ (canvas 278x380) — tay khoanh trong áo, chỉ thấy nếp áo hai bên
+# Pose LẠY (278x380) theo chuỗi ngũ thể đầu địa của nguồn:
+#   forehead (devotee_bow.png)           : quỳ + 2 tay giơ cạnh đầu
+#   bowMid    (devotee_bow_mid.png)      : cúi ~50° + 2 tay chống đất phía trước
+#   prostrate (devotee_prostrate.png)    : gập sâu, gồ lưng cao, tay cạnh đầu thấp
+#   prostrateDeep (devotee_prostrate_deep.png) : gập hết cỡ, rộng nhất
 # ---------------------------------------------------------------------------
 
-def sprite_kneel(lower=0.0):
-    W, H = 278, 380
-    cx = 139
-    drop = lower * 34
-    pool = 78 + lower * 14
-    top_y = 66 + drop
-    g = [f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">', SPRITE_DEFS]
-    g.append(sprite_shadow(cx, 366, pool - 4, 12))
-    g.append(f'<ellipse cx="{cx+30}" cy="200" rx="60" ry="130" fill="url(#rimWarm)" filter="url(#sb4)"/>')
-    base_y = 356
-    # vạt áo pooling quanh chân quỳ
-    g.append(f"""<g>
-      <path d="M{cx-pool} {base_y}
-               C {cx-pool-8} {base_y-46} {cx-pool+6} {base_y-70} {cx-pool+26} {base_y-74}
-               L {cx+pool-26} {base_y-74}
-               C {cx+pool-6} {base_y-70} {cx+pool+8} {base_y-46} {cx+pool} {base_y} Z" fill="url(#robe)"/>
-      <path d="M{cx-pool} {base_y} C {cx-pool-8} {base_y-46} {cx-pool+6} {base_y-70} {cx-pool+26} {base_y-74}
-              L {cx-pool+40} {base_y-74} C {cx-pool+22} {base_y-58} {cx-pool+16} {base_y-30} {cx-pool+18} {base_y} Z" fill="#122b25" opacity="0.75"/>
-      <path d="M{cx+pool-40} {base_y-74} C {cx+pool-22} {base_y-58} {cx+pool-16} {base_y-30} {cx+pool-18} {base_y} L {cx+pool} {base_y} C {cx+pool+8} {base_y-46} {cx+pool-6} {base_y-70} {cx+pool-26} {base_y-74} Z" fill="#122b25" opacity="0.5"/>
-    </g>""")
-    ty = top_y + 66
-    # thân
-    g.append(f"""<g>
-      <path d="M{cx-46} {top_y+58}
-               C {cx-58} {ty+30} {cx-60} {ty+90} {cx-50} {base_y-72}
-               L {cx+50} {base_y-72}
-               C {cx+60} {ty+90} {cx+58} {ty+30} {cx+46} {top_y+58} Z" fill="url(#robe)"/>
-      <path d="M{cx-46} {top_y+58} C {cx-58} {ty+30} {cx-60} {ty+90} {cx-50} {base_y-72}" fill="none" stroke="#122b25" stroke-width="3" opacity="0.7"/>
-      <path d="M{cx+46} {top_y+58} C {cx+58} {ty+30} {cx+60} {ty+90} {cx+50} {base_y-72}" fill="none" stroke="#0f2a24" stroke-width="3" opacity="0.6"/>
-      <path d="M{cx-46} {top_y+58} C {cx-40} {ty+60} {cx-38} {ty+120} {cx-42} {base_y-72} L {cx-18} {base_y-72} C {cx-16} {ty+110} {cx-18} {ty+50} {cx-20} {top_y+62} Z" fill="#122b25" opacity="0.45"/>
-      <path d="M{cx-48} {ty+34} C {cx-54} {ty+60} {cx-52} {ty+86} {cx-44} {base_y-84}" fill="none" stroke="#16352e" stroke-width="4" opacity="0.55" stroke-linecap="round"/>
-      <path d="M{cx+48} {ty+34} C {cx+54} {ty+60} {cx+52} {ty+86} {cx+44} {base_y-84}" fill="none" stroke="#16352e" stroke-width="4" opacity="0.55" stroke-linecap="round"/>
-    </g>""")
-    g.append(sash_knot(cx, ty + 18))
-    g.append(f'<path d="M{cx-18} {top_y+52} L{cx+18} {top_y+52} L{cx+15} {top_y+70} L{cx-15} {top_y+70} Z" fill="#2c5a4e"/>')
-    g.append(head_bun(cx, top_y + 22, 27))
-    g.append("</svg>")
-    return "".join(g)
-
-
-# ---------------------------------------------------------------------------
-# Pose: CÚI NGƯỜI (canvas 278x380) — bowMid cúi ~45°, bow sấp sâu
-# hai bàn tay chống đất trước mặt
-# ---------------------------------------------------------------------------
-
-def sprite_bow(depth):
+def sprite_bow(kind):
     W, H = 278, 380
     cx = 139
     g = [f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">', SPRITE_DEFS]
-    g.append(sprite_shadow(cx, 366, 86, 12))
-    base_y = 356
-    g.append(f'<ellipse cx="{cx+34}" cy="220" rx="62" ry="120" fill="url(#rimWarm)" filter="url(#sb4)"/>')
-    if depth < 0.5:
-        hump_y = 128
-        head_y = 196
-        g.append(f"""<g>
-          <path d="M{cx-80} {base_y}
-                   C {cx-88} {base_y-44} {cx-74} {base_y-72} {cx-52} {base_y-76}
-                   L {cx+52} {base_y-76}
-                   C {cx+74} {base_y-72} {cx+88} {base_y-44} {cx+80} {base_y} Z" fill="url(#robe)"/>
-          <path d="M{cx-56} {base_y-72}
-                   C {cx-84} {base_y-108} {cx-70} {hump_y+40} {cx-20} {hump_y}
-                   C {cx+26} {hump_y-12} {cx+58} {hump_y+30} {cx+56} {base_y-72} Z" fill="url(#robe)"/>
-          <path d="M{cx-20} {hump_y} C {cx+26} {hump_y-12} {cx+58} {hump_y+30} {cx+56} {base_y-72}" fill="none" stroke="#0f2a24" stroke-width="3" opacity="0.6"/>
-          <path d="M{cx-56} {base_y-72} C {cx-84} {base_y-108} {cx-70} {hump_y+40} {cx-20} {hump_y}" fill="none" stroke="#122b25" stroke-width="3" opacity="0.7"/>
-        </g>""")
-        # hai ống tay duỗi từ vai xuống đất, bàn tay úp đất
-        g.append(f"""<g>
-          <path d="M{cx-34} {hump_y+10}
-                   C {cx-56} {hump_y+30} {cx-66} {hump_y+90} {cx-60} {base_y-26}
-                   C {cx-58} {base_y-10} {cx-44} {base_y-10} {cx-40} {base_y-24}
-                   C {cx-40} {hump_y+80} {cx-34} {hump_y+30} {cx-24} {hump_y+14} Z" fill="url(#sleeve)"/>
-          <ellipse cx="{cx-50}" cy="{base_y-12}" rx="15" ry="8" fill="#e8d8b8"/>
-          <path d="M{cx+32} {hump_y+8}
-                   C {cx+54} {hump_y+28} {cx+64} {hump_y+88} {cx+58} {base_y-26}
-                   C {cx+56} {base_y-10} {cx+42} {base_y-10} {cx+38} {base_y-24}
-                   C {cx+38} {hump_y+78} {cx+32} {hump_y+28} {cx+22} {hump_y+12} Z" fill="url(#sleeve)"/>
-          <ellipse cx="{cx+48}" cy="{base_y-12}" rx="15" ry="8" fill="#e8d8b8"/>
-        </g>""")
-        g.append(sash_knot(cx - 12, hump_y + 66))
-        g.append(head_bun(cx + 2, head_y, 26))
-    else:
-        hump_y = 108
-        g.append(f"""<g>
-          <path d="M{cx-84} {base_y}
-                   C {cx-92} {base_y-42} {cx-78} {base_y-70} {cx-56} {base_y-74}
-                   L {cx+56} {base_y-74}
-                   C {cx+78} {base_y-70} {cx+92} {base_y-42} {cx+84} {base_y} Z" fill="url(#robe)"/>
-          <path d="M{cx-58} {base_y-70}
-                   C {cx-96} {base_y-96} {cx-64} {hump_y+8} {cx-8} {hump_y-6}
-                   C {cx+44} {hump_y-16} {cx+70} {hump_y+40} {cx+58} {base_y-70} Z" fill="url(#robe)"/>
-          <path d="M{cx-8} {hump_y-6} C {cx+44} {hump_y-16} {cx+70} {hump_y+40} {cx+58} {base_y-70}" fill="none" stroke="#0f2a24" stroke-width="3" opacity="0.6"/>
-          <path d="M{cx-58} {base_y-70} C {cx-96} {base_y-96} {cx-64} {hump_y+8} {cx-8} {hump_y-6}" fill="none" stroke="#122b25" stroke-width="3" opacity="0.7"/>
-        </g>""")
-        g.append(f"""<g>
-          <path d="M{cx-16} {hump_y+2}
-                   C {cx-44} {hump_y+18} {cx-58} {hump_y+80} {cx-56} {base_y-24}
-                   C {cx-56} {base_y-8} {cx-42} {base_y-8} {cx-38} {base_y-22}
-                   C {cx-38} {hump_y+72} {cx-28} {hump_y+26} {cx-12} {hump_y+12} Z" fill="url(#sleeve)"/>
-          <ellipse cx="{cx-46}" cy="{base_y-10}" rx="15" ry="8" fill="#e8d8b8"/>
-          <path d="M{cx+14} {hump_y}
-                   C {cx+42} {hump_y+16} {cx+56} {hump_y+78} {cx+54} {base_y-24}
-                   C {cx+54} {base_y-8} {cx+40} {base_y-8} {cx+36} {base_y-22}
-                   C {cx+36} {hump_y+70} {cx+28} {hump_y+24} {cx+10} {hump_y+10} Z" fill="url(#sleeve)"/>
-          <ellipse cx="{cx+44}" cy="{base_y-10}" rx="15" ry="8" fill="#e8d8b8"/>
-        </g>""")
-        g.append(sash_knot(cx - 8, hump_y + 78))
-        g.append(head_bun(cx - 2, hump_y + 34, 25))
+    if kind == "forehead":
+        g.append(sprite_shadow(cx, 364, 90, 12))
+        g.append(part_skirt(cx, 224, 52, 356, 88, folds=5, knee=True))
+        # tay áo giơ lên hai bên đầu + bàn tay lộ
+        g.append(part_sleeve((102, 152), (70, 118), (58, 84), (74, 66), (88, 92), (100, 140),
+                             cuff_rx=13, cuff_ry=9, hand=(68, 50), hand_rot=-20))
+        g.append(part_sleeve((176, 152), (208, 118), (220, 84), (204, 66), (190, 92), (178, 140),
+                             cuff_rx=13, cuff_ry=9, hand=(210, 50), hand_rot=20))
+        g.append(part_torso(cx, 132, 224, 52, 44, hunch=0.35))
+        g.append(part_sash(cx, 216, 52))
+        g.append(part_collar(cx, 124))
+        g.append(part_ears(cx, 106, 47))
+        g.append(part_hair(cx, 84, 50, 50, 21))
+    else:  # mid
+        g.append(sprite_shadow(cx, 364, 92, 12))
+        g.append(part_skirt(cx, 224, 52, 356, 90, folds=5, knee=True))
+        # thân gập: vòm lưng trùm lên, đầu hạ thấp phía xa
+        g.append(
+            f'<path d="M {cx - 54} 224 C {cx - 88} 202 {cx - 72} 130 {cx - 6} 118 '
+            f'C {cx + 58} 108 {cx + 86} 170 {cx + 56} 224 Z" fill="url(#robe)"/>'
+        )
+        g.append(
+            seam(f'M {cx - 40} 214 C {cx - 62} 182 {cx - 52} 140 {cx - 8} 128', w=2, op=0.4)
+        )
+        g.append(
+            seam(f'M {cx - 6} 118 C {cx + 58} 108 {cx + 86} 170 {cx + 56} 224', w=2.2, op=0.45)
+        )
+        g.append(rim(f'M {cx - 6} 118 Q {cx + 40} 126 {cx + 66} 164 Q {cx + 72} 190 {cx + 60} 212', w=2.8, op=0.6))
+        # tóc ló trên đỉnh vòm
+        g.append(part_hair(cx, 108, 40, 36, 17))
+        # hai tay chống đất trước
+        g.append(part_sleeve((98, 156), (62, 210), (56, 296), (86, 332), (94, 300), (104, 224),
+                             cuff_rx=13, cuff_ry=9, hand=(92, 346), hand_rot=90, hand_w=12, hand_h=7))
+        g.append(part_sleeve((180, 154), (216, 208), (222, 294), (192, 332), (184, 298), (174, 222),
+                             cuff_rx=13, cuff_ry=9, hand=(186, 346), hand_rot=90, hand_w=12, hand_h=7))
     g.append("</svg>")
     return "".join(g)
 
-
-# ---------------------------------------------------------------------------
-# Pose: NẰM SẤP (canvas 278x380)
-# ---------------------------------------------------------------------------
 
 def sprite_prostrate(deep=False):
     W, H = 278, 380
     cx = 139
     g = [f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">', SPRITE_DEFS]
-    g.append(sprite_shadow(cx, 366, 92, 12))
-    base_y = 358
+    g.append(sprite_shadow(cx, 364, 94, 12))
     if not deep:
-        peak_y = 150
-        g.append(f'<ellipse cx="{cx+30}" cy="230" rx="62" ry="110" fill="url(#rimWarm)" filter="url(#sb4)"/>')
-        g.append(f"""<g>
-          <path d="M{cx-86} {base_y}
-                   C {cx-94} {base_y-40} {cx-80} {base_y-66} {cx-58} {base_y-70}
-                   L {cx+58} {base_y-70}
-                   C {cx+80} {base_y-66} {cx+94} {base_y-40} {cx+86} {base_y} Z" fill="url(#robe)"/>
-          <path d="M{cx-58} {base_y-66}
-                   C {cx-98} {base_y-88} {cx-72} {peak_y+22} {cx-16} {peak_y}
-                   C {cx+38} {peak_y-14} {cx+72} {peak_y+34} {cx+58} {base_y-66} Z" fill="url(#robe)"/>
-          <path d="M{cx-16} {peak_y} C {cx+38} {peak_y-14} {cx+72} {peak_y+34} {cx+58} {base_y-66}" fill="none" stroke="#0f2a24" stroke-width="3" opacity="0.6"/>
-          <path d="M{cx-58} {base_y-66} C {cx-98} {base_y-88} {cx-72} {peak_y+22} {cx-16} {peak_y}" fill="none" stroke="#122b25" stroke-width="3" opacity="0.7"/>
-        </g>""")
-        # tay gập, bàn tay úp hai bên đầu, cánh tay nối liền vai
-        g.append(f"""<g>
-          <path d="M{cx-24} {peak_y+6}
-                   C {cx-48} {peak_y+10} {cx-64} {peak_y+34} {cx-62} {peak_y+64}
-                   C {cx-60} {peak_y+82} {cx-48} {peak_y+86} {cx-42} {peak_y+76}
-                   C {cx-40} {peak_y+52} {cx-34} {peak_y+26} {cx-22} {peak_y+16} Z" fill="url(#sleeve)"/>
-          <ellipse cx="{cx-50}" cy="{peak_y+80}" rx="14" ry="8" fill="#e8d8b8"/>
-          <path d="M{cx+22} {peak_y+4}
-                   C {cx+46} {peak_y+8} {cx+62} {peak_y+32} {cx+60} {peak_y+62}
-                   C {cx+58} {peak_y+80} {cx+46} {peak_y+84} {cx+40} {peak_y+74}
-                   C {cx+38} {peak_y+50} {cx+32} {peak_y+24} {cx+20} {peak_y+14} Z" fill="url(#sleeve)"/>
-          <ellipse cx="{cx+48}" cy="{peak_y+78}" rx="14" ry="8" fill="#e8d8b8"/>
-        </g>""")
-        g.append(sash_knot(cx - 6, peak_y + 66))
-        g.append(head_bun(cx - 4, peak_y + 30, 24))
+        g.append(part_skirt(cx, 230, 54, 356, 96, folds=5, knee=True))
+        # vòm lưng gập cao
+        g.append(
+            f'<path d="M {cx - 56} 230 C {cx - 86} 208 {cx - 66} 152 {cx} 146 '
+            f'C {cx + 66} 152 {cx + 86} 208 {cx + 56} 230 Z" fill="url(#robe)"/>'
+        )
+        g.append(seam(f'M {cx - 44} 218 C {cx - 58} 184 {cx - 40} 158 {cx - 2} 152', w=2, op=0.4))
+        g.append(rim(f'M {cx} 146 Q {cx + 44} 154 {cx + 66} 190 Q {cx + 72} 212 {cx + 58} 226', w=2.8, op=0.6))
+        g.append(part_hair(cx, 142, 40, 34, 17))
+        g.append(part_sleeve((96, 184), (62, 226), (56, 286), (86, 308), (94, 282), (104, 214),
+                             cuff_rx=13, cuff_ry=9, hand=(94, 322), hand_rot=24, hand_w=11, hand_h=8))
+        g.append(part_sleeve((182, 182), (216, 224), (222, 284), (192, 308), (184, 280), (174, 212),
+                             cuff_rx=13, cuff_ry=9, hand=(184, 322), hand_rot=-24, hand_w=11, hand_h=8))
     else:
-        body_top = 216
-        g.append(f'<ellipse cx="{cx+30}" cy="260" rx="64" ry="90" fill="url(#rimWarm)" filter="url(#sb4)"/>')
-        g.append(f"""<g>
-          <path d="M{cx-88} {base_y}
-                   C {cx-96} {base_y-36} {cx-84} {base_y-58} {cx-62} {base_y-62}
-                   L {cx+60} {base_y-62}
-                   C {cx+84} {base_y-58} {cx+96} {base_y-36} {cx+88} {base_y} Z" fill="url(#robe)"/>
-          <path d="M{cx-62} {base_y-58}
-                   C {cx-92} {base_y-72} {cx-70} {body_top+10} {cx-10} {body_top}
-                   C {cx+50} {body_top-8} {cx+76} {body_top+30} {cx+60} {base_y-58} Z" fill="url(#robe)"/>
-          <path d="M{cx-10} {body_top} C {cx+50} {body_top-8} {cx+76} {body_top+30} {cx+60} {base_y-58}" fill="none" stroke="#0f2a24" stroke-width="3" opacity="0.55"/>
-          <path d="M{cx-62} {base_y-58} C {cx-92} {base_y-72} {cx-70} {body_top+10} {cx-10} {body_top}" fill="none" stroke="#122b25" stroke-width="3" opacity="0.65"/>
-        </g>""")
-        # hai cánh tay duỗi thẳng ra trước qua đầu, bàn tay úp đất
-        g.append(f"""<g>
-          <path d="M{cx-10} {body_top+2}
-                   C {cx-38} {body_top-6} {cx-68} {body_top+8} {cx-84} {body_top+26}
-                   C {cx-94} {body_top+38} {cx-88} {body_top+50} {cx-78} {body_top+48}
-                   C {cx-58} {body_top+44} {cx-30} {body_top+32} {cx-12} {body_top+20} Z" fill="url(#sleeve)"/>
-          <ellipse cx="{cx-86}" cy="{body_top+42}" rx="15" ry="8" fill="#e8d8b8"/>
-          <path d="M{cx+8} {body_top}
-                   C {cx+36} {body_top-8} {cx+66} {body_top+6} {cx+82} {body_top+24}
-                   C {cx+92} {body_top+36} {cx+86} {body_top+48} {cx+76} {body_top+46}
-                   C {cx+56} {body_top+42} {cx+28} {body_top+30} {cx+10} {body_top+18} Z" fill="url(#sleeve)"/>
-          <ellipse cx="{cx+84}" cy="{body_top+40}" rx="15" ry="8" fill="#e8d8b8"/>
-        </g>""")
-        g.append(sash_knot(cx - 2, body_top + 52))
-        g.append(head_bun(cx - 14, body_top + 26, 23))
+        g.append(part_skirt(cx, 234, 56, 358, 102, folds=6, knee=True))
+        # gập hết cỡ: vòm thấp dài, rộng
+        g.append(
+            f'<path d="M {cx - 60} 236 C {cx - 92} 220 {cx - 72} 170 {cx} 164 '
+            f'C {cx + 72} 170 {cx + 92} 220 {cx + 60} 236 Z" fill="url(#robe)"/>'
+        )
+        g.append(seam(f'M {cx - 46} 224 C {cx - 58} 194 {cx - 38} 174 {cx} 170', w=2, op=0.4))
+        g.append(rim(f'M {cx} 164 Q {cx + 48} 172 {cx + 72} 202 Q {cx + 78} 222 {cx + 62} 232', w=2.8, op=0.6))
+        g.append(part_hair(cx, 160, 42, 32, 16))
+        g.append(part_sleeve((94, 198), (58, 240), (52, 294), (84, 316), (92, 290), (102, 226),
+                             cuff_rx=13, cuff_ry=9, hand=(90, 330), hand_rot=32, hand_w=12, hand_h=7))
+        g.append(part_sleeve((184, 196), (220, 238), (226, 292), (194, 316), (186, 288), (176, 224),
+                             cuff_rx=13, cuff_ry=9, hand=(188, 330), hand_rot=-32, hand_w=12, hand_h=7))
     g.append("</svg>")
     return "".join(g)
-
 
 # ===========================================================================
 # MAIN
@@ -887,8 +1024,8 @@ def main():
     render("devotee_walk_2.png", sprite_walk(-1), 200, 480, transparent=True)
     render("devotee_kneel_down.png", sprite_kneel(lower=1.0), 278, 380, transparent=True)
     render("devotee.png", sprite_kneel(lower=0.0), 278, 380, transparent=True)
-    render("devotee_bow_mid.png", sprite_bow(depth=0.0), 278, 380, transparent=True)
-    render("devotee_bow.png", sprite_bow(depth=1.0), 278, 380, transparent=True)
+    render("devotee_bow_mid.png", sprite_bow("mid"), 278, 380, transparent=True)
+    render("devotee_bow.png", sprite_bow("forehead"), 278, 380, transparent=True)
     render("devotee_prostrate.png", sprite_prostrate(deep=False), 278, 380, transparent=True)
     render("devotee_prostrate_deep.png", sprite_prostrate(deep=True), 278, 380, transparent=True)
     print("Xong. Đã ghi đè public/assets/*.png")
