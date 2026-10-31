@@ -1,0 +1,16 @@
+{
+  "name": "tu-tien-live-rpc",
+  "version": "0.1.0",
+  "description": "Tu Tiên Live RPC — Thanh Vân Tông, TikTok Live 9:16, giọng ZeroTTS maichi",
+  "main": "server.js",
+  "scripts": {
+    "start": "bun run server.js",
+    "dev": "bun --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "tiktok-live-connector": "^2.1.0",
+    "ws": "^8.18.0"
+  }
+}
