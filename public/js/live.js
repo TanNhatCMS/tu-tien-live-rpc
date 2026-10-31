@@ -406,8 +406,8 @@
     } else {
       liveDot.classList.remove('connected');
       liveText.textContent = st.settings?.autoSim
-        ? 'CHÙA LINH ỨNG • TỰ ĐỘNG GIẢ LẬP ĐÔNG NGƯỜI'
-        : 'CHÙA LINH ỨNG • ĐỨC PHẬT A DI ĐÀ';
+        ? 'THANH VÂN TÔNG • CHẾ ĐỘ DEMO'
+        : 'THANH VÂN TÔNG • TIÊN ĐIỆN';
     }
 
     const btnAutoSim = document.getElementById('btnToggleAutoSim');
@@ -482,7 +482,7 @@
         audio.playLampChime();
         particles.spawnLampBurst(540, 895);
         particles.spawnFloatingTuVi(`+${ev.tuVi} Tu Vi`, 540, 860, '#ffe082');
-        animateWalkerOnCarpet(ev.user, ev.avatar, `🔥 Dâng ${ev.count} nén hương (+${ev.tuVi} tu vi)`, ev.wish);
+        animateWalkerOnCarpet(ev.user, ev.avatar, `🔥 Dâng ${ev.count} linh đăng (+${ev.tuVi} tu vi)`, ev.wish);
         break;
       }
 
