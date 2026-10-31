@@ -209,22 +209,33 @@
     img.src = url;
   });
 
+  // Đổi frame vái lạy của 1 sprite theo delay (forehead -> bowMid -> prostrateDeep -> kneeling)
+  function bowSprite(img, delay) {
+    if (!img) return;
+    setTimeout(() => { img.src = SPRITE_FRAMES.forehead; }, delay);
+    setTimeout(() => { img.src = SPRITE_FRAMES.bowMid; }, delay + 140);
+    setTimeout(() => { img.src = SPRITE_FRAMES.prostrateDeep; }, delay + 300);
+    setTimeout(() => { img.src = SPRITE_FRAMES.bowMid; }, delay + 620);
+    setTimeout(() => { img.src = SPRITE_FRAMES.kneel; }, delay + 780);
+  }
+
   function pulseHallBowing() {
+    // Hàng Chân Truyền (6 đệm quỳ VIP, y=1188 — hàng người trên cùng màn hình)
+    // lạy trước tiên vì gần bàn thờ nhất.
+    document.querySelectorAll('.vip-devotee-slot .devotee-sprite').forEach((img, i) => {
+      bowSprite(img, i * 40);
+    });
     if (!congregationHall) return;
     const seats = congregationHall.querySelectorAll('.hall-seat');
     seats.forEach((el, i) => {
       const img = el.querySelector('.devotee-sprite');
-      if (!img) return;
-      // Sóng vái lạy: lan từ hàng xa tới hàng gần + từ mép thảm ra biên ngoài.
-      // Mỗi hàng 8 chỗ (4 trái + 4 phải), col 0 = gần thảm, col 3 = mép ngoài.
+      // Sóng lan từ hàng trên (gần bàn thờ) xuống hàng dưới + từ mép thảm ra biên.
+      // Mỗi hàng 8 chỗ: 4 trái rồi 4 phải — cột trái col3 gần thảm, cột phải col0 gần thảm.
       const row = Math.floor(i / 8);
+      const sideLeft = i % 8 < 4;
       const col = i % 4;
-      const delay = row * 100 + col * 55;
-      setTimeout(() => { img.src = SPRITE_FRAMES.forehead; }, delay);
-      setTimeout(() => { img.src = SPRITE_FRAMES.bowMid; }, delay + 140);
-      setTimeout(() => { img.src = SPRITE_FRAMES.prostrateDeep; }, delay + 300);
-      setTimeout(() => { img.src = SPRITE_FRAMES.bowMid; }, delay + 620);
-      setTimeout(() => { img.src = SPRITE_FRAMES.kneel; }, delay + 780);
+      const distFromCarpet = sideLeft ? 3 - col : col;
+      bowSprite(img, 200 + row * 90 + distFromCarpet * 50);
     });
   }
 
